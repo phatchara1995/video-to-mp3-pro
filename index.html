@@ -1,0 +1,393 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Video to MP3 Pro</title>
+
+    <link rel="manifest" href="manifest.json">
+    <meta name="theme-color" content="#2563eb">
+
+    <script src="https://cdn.tailwindcss.com"></script>
+    <script src="https://cdn.jsdelivr.net/npm/@ffmpeg/ffmpeg@0.12.10/dist/umd/ffmpeg.js"></script>
+
+    <style>
+        @import url('https://fonts.googleapis.com/css2?family=Kanit:wght@300;400;600;700&display=swap');
+
+        body{
+            font-family:'Kanit',sans-serif;
+            background:#0f172a;
+            color:white;
+        }
+
+        .card-shadow{
+            box-shadow:0 20px 50px rgba(0,0,0,.5);
+        }
+    </style>
+</head>
+
+<body class="min-h-screen flex items-center justify-center p-6">
+
+<div class="w-full max-w-lg bg-slate-900 border border-slate-800 rounded-[2rem] p-8 card-shadow">
+
+    <div class="text-center mb-10">
+        <div class="inline-flex items-center justify-center w-16 h-16 bg-blue-600 rounded-2xl mb-4">
+            🎧
+        </div>
+
+        <h1 class="text-2xl font-bold">
+            แปลงวิดีโอเป็นเสียง
+        </h1>
+
+        <p class="text-slate-400 text-sm mt-2">
+            ใช้งานฟรี • สำหรับใช้ส่วนตัว
+        </p>
+    </div>
+
+    <!-- FILE -->
+    <div class="space-y-6">
+
+        <div>
+            <label class="block text-sm text-slate-400 mb-3">
+                เลือกไฟล์วิดีโอ
+            </label>
+
+            <input
+                type="file"
+                id="fileInput"
+                accept=".mp4,.mov,.webm,.mkv,.avi"
+                class="block w-full text-sm text-slate-400
+                file:mr-4 file:py-3 file:px-6
+                file:rounded-xl file:border-0
+                file:text-sm file:font-semibold
+                file:bg-blue-600 file:text-white
+                hover:file:bg-blue-500
+                cursor-pointer bg-slate-800 rounded-2xl border border-slate-700 p-2"
+            />
+
+            <p id="fileName" class="mt-2 text-xs text-slate-500"></p>
+        </div>
+
+        <!-- FORMAT -->
+        <div>
+            <label class="block text-sm text-slate-400 mb-3">
+                รูปแบบไฟล์เสียง
+            </label>
+
+            <div class="grid grid-cols-3 gap-3">
+
+                <button id="formatMP3"
+                    class="format-btn py-3 rounded-xl font-semibold bg-blue-600 border-2 border-blue-600">
+                    MP3
+                </button>
+
+                <button id="formatWAV"
+                    class="format-btn py-3 rounded-xl font-semibold bg-slate-800 border-2 border-slate-700">
+                    WAV
+                </button>
+
+                <button id="formatM4A"
+                    class="format-btn py-3 rounded-xl font-semibold bg-slate-800 border-2 border-slate-700">
+                    M4A
+                </button>
+
+            </div>
+        </div>
+
+        <!-- BUTTON -->
+        <button id="convertBtn" disabled
+            class="w-full bg-blue-600 hover:bg-blue-500 disabled:bg-slate-800 py-4 rounded-2xl font-bold text-lg">
+            สกัดไฟล์เสียง
+        </button>
+
+        <!-- STATUS -->
+        <div id="statusArea" class="hidden space-y-3">
+
+            <div class="flex justify-between text-xs font-semibold text-blue-400">
+                <span id="statusText">กำลังประมวลผล...</span>
+                <span id="progressText">0%</span>
+            </div>
+
+            <div class="w-full bg-slate-800 h-3 rounded-full overflow-hidden">
+                <div id="progressBar"
+                    class="bg-blue-500 h-full w-0 transition-all duration-300">
+                </div>
+            </div>
+
+        </div>
+
+        <!-- RESULT -->
+        <div id="resultArea" class="hidden pt-6 border-t border-slate-800 text-center">
+
+            <p class="text-emerald-400 font-bold mb-4">
+                ✅ พร้อมดาวน์โหลดแล้ว
+            </p>
+
+            <a id="downloadBtn"
+                class="inline-block w-full bg-emerald-600 hover:bg-emerald-500 py-4 rounded-2xl font-bold">
+                ดาวน์โหลดไฟล์เสียง
+            </a>
+
+            <p id="formatInfo"
+                class="mt-4 text-[10px] text-slate-500 uppercase tracking-widest font-bold">
+            </p>
+
+        </div>
+
+    </div>
+
+</div>
+
+<script type="module">
+
+const { FFmpeg } = FFmpegWASM;
+const { fetchFile, toBlobURL } = FFmpegWASM;
+
+const fileInput = document.getElementById('fileInput');
+const convertBtn = document.getElementById('convertBtn');
+
+const statusArea = document.getElementById('statusArea');
+const statusText = document.getElementById('statusText');
+const progressBar = document.getElementById('progressBar');
+const progressText = document.getElementById('progressText');
+
+const resultArea = document.getElementById('resultArea');
+const downloadBtn = document.getElementById('downloadBtn');
+const formatInfo = document.getElementById('formatInfo');
+
+const fileName = document.getElementById('fileName');
+
+const formatMP3 = document.getElementById('formatMP3');
+const formatWAV = document.getElementById('formatWAV');
+const formatM4A = document.getElementById('formatM4A');
+
+let selectedFormat = 'mp3';
+
+let ffmpeg = null;
+let ffmpegLoaded = false;
+
+function setActive(btn){
+
+    [formatMP3,formatWAV,formatM4A].forEach(b=>{
+        b.className='format-btn py-3 rounded-xl font-semibold bg-slate-800 border-2 border-slate-700';
+    });
+
+    btn.className='format-btn py-3 rounded-xl font-semibold bg-blue-600 border-2 border-blue-600';
+}
+
+formatMP3.onclick=()=>{
+    selectedFormat='mp3';
+    setActive(formatMP3);
+};
+
+formatWAV.onclick=()=>{
+    selectedFormat='wav';
+    setActive(formatWAV);
+};
+
+formatM4A.onclick=()=>{
+    selectedFormat='m4a';
+    setActive(formatM4A);
+};
+
+fileInput.onchange=(e)=>{
+
+    if(e.target.files.length>0){
+
+        const file=e.target.files[0];
+
+        fileName.textContent=
+            `📁 ${file.name} (${(file.size/1024/1024).toFixed(2)} MB)`;
+
+        convertBtn.disabled=false;
+
+    }
+};
+
+async function loadFFmpeg(){
+
+    if(ffmpegLoaded) return;
+
+    ffmpeg = new FFmpeg({ log:true });
+
+    const baseURL =
+        'https://cdn.jsdelivr.net/npm/@ffmpeg/core@0.12.6/dist/umd';
+
+    ffmpeg.on('progress', ({ progress }) => {
+
+        const percent=Math.round(progress*100);
+
+        if(percent>0){
+            updateStatus('กำลังแปลงไฟล์...',Math.min(percent,95));
+        }
+
+    });
+
+    await ffmpeg.load({
+
+        coreURL: await toBlobURL(
+            `${baseURL}/ffmpeg-core.js`,
+            'text/javascript'
+        ),
+
+        wasmURL: await toBlobURL(
+            `${baseURL}/ffmpeg-core.wasm`,
+            'application/wasm'
+        )
+
+    });
+
+    ffmpegLoaded=true;
+}
+
+convertBtn.onclick = async ()=>{
+
+    const file=fileInput.files[0];
+
+    if(!file) return;
+
+    try{
+
+        convertBtn.disabled=true;
+
+        statusArea.classList.remove('hidden');
+        resultArea.classList.add('hidden');
+
+        updateStatus('กำลังเตรียมระบบ...',5);
+
+        if(!ffmpegLoaded){
+
+            updateStatus('กำลังโหลด FFmpeg...',10);
+
+            await loadFFmpeg();
+
+        }
+
+        const inputName='input'+file.name.substring(file.name.lastIndexOf('.'));
+
+        await ffmpeg.writeFile(
+            inputName,
+            await fetchFile(file)
+        );
+
+        let outputName;
+        let ffmpegArgs;
+
+        if(selectedFormat==='mp3'){
+
+            outputName='output.mp3';
+
+            ffmpegArgs=[
+                '-i',inputName,
+                '-vn',
+                '-acodec','libmp3lame',
+                '-b:a','320k',
+                '-ar','48000',
+                '-af','loudnorm',
+                '-threads','4',
+                outputName
+            ];
+
+        }
+
+        else if(selectedFormat==='wav'){
+
+            outputName='output.wav';
+
+            ffmpegArgs=[
+                '-i',inputName,
+                '-vn',
+                '-acodec','pcm_s24le',
+                '-ar','48000',
+                '-ac','2',
+                outputName
+            ];
+
+        }
+
+        else{
+
+            outputName='output.m4a';
+
+            ffmpegArgs=[
+                '-i',inputName,
+                '-vn',
+                '-c:a','aac',
+                '-b:a','256k',
+                outputName
+            ];
+
+        }
+
+        await ffmpeg.exec(ffmpegArgs);
+
+        updateStatus('กำลังเตรียมดาวน์โหลด...',96);
+
+        const data = await ffmpeg.readFile(outputName);
+
+        const mimeMap = {
+            mp3:'audio/mpeg',
+            wav:'audio/wav',
+            m4a:'audio/mp4'
+        };
+
+        const blob = new Blob(
+            [data.buffer],
+            { type:mimeMap[selectedFormat] }
+        );
+
+        const url = URL.createObjectURL(blob);
+
+        downloadBtn.href=url;
+
+        const baseName=file.name
+            .replace(/\.[^/.]+$/,'')
+            .replace(/[^\wก-๙]/g,'_');
+
+        downloadBtn.download=
+            `${baseName}_audio.${selectedFormat}`;
+
+        formatInfo.textContent=
+            selectedFormat.toUpperCase()+' QUALITY';
+
+        updateStatus('เสร็จสิ้น!',100);
+
+        resultArea.classList.remove('hidden');
+
+    }
+
+    catch(err){
+
+        console.error(err);
+
+        alert('เกิดข้อผิดพลาด');
+
+    }
+
+    finally{
+
+        convertBtn.disabled=false;
+
+    }
+
+};
+
+function updateStatus(msg,percent){
+
+    statusText.innerText=msg;
+
+    progressText.innerText=percent+'%';
+
+    progressBar.style.width=percent+'%';
+}
+
+if('serviceWorker' in navigator){
+
+    navigator.serviceWorker.register('./service-worker.js');
+
+}
+
+</script>
+
+</body>
+</html>
