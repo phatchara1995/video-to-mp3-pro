@@ -1,0 +1,41 @@
+<!DOCTYPE html>
+<html lang="th">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>FoxDen-Lite</title>
+    <style>
+        body {
+            font-family: -apple-system, sans-serif;
+            background: #0f0f1a;
+            color: #ff7eb9;
+            padding: 1rem;
+        }
+        .container {
+            border: 2px dashed #ff7eb9;
+            border-radius: 12px;
+            padding: 1.5rem;
+        }
+        button {
+            background: #ff7eb9;
+            color: #0f0f1a;
+            border: none;
+            padding: 0.8rem;
+            margin: 0.5rem;
+            border-radius: 8px;
+            font-weight: bold;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>🦊 FoxDen-Lite</h1>
+        <p>⚠️ สำหรับ iPhone 14 (Safari)</p>
+        <button onclick="alert('เรียกใช้ Shortcuts → โหลด NSFW Model')">🎨 GEN ADULT</button>
+        <button onclick="alert('บันทึกรูปใน Photos โดยไม่ตรวจสอบ')">💾 SAVE TO CAMERA ROLL</button>
+    </div>
+</body>
+</html>
+
+
+#เจนรูปภาพเอง
